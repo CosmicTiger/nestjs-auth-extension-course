@@ -1,0 +1,19 @@
+## ⚙️ docker-compose.yml file contents
+version: "3.8"
+
+services:
+  db-auth-nestjs-course:
+    image: postgres
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: illuvcoffee
+      POSTGRES_PASSWORD: 1lluvC0ff33&C0d!n5
+      POSTGRES_DB: illuvcoffee_db
+    volumes:
+      - ./db-auth-nestjs-course:/var/lib/postgresql/data
+
+volumes:
+  db-auth-nestjs-course:
+    driver: local

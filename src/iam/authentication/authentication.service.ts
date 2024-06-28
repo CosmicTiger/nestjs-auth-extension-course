@@ -72,7 +72,12 @@ export class AuthenticationService {
       this.signToken<Partial<ActiveUserData>>(
         user.id,
         this.jwtConfiguration.accessTokenTTL,
-        { email: user.email },
+        {
+          email: user.email,
+          role: user.role,
+          // MARKER: WARNING ⚠ This was made only for demonstration purposes is not intended to work like that in a real-world application
+          permissions: user.permissions,
+        },
       ),
       this.signToken<Partial<RefreshTokenData>>(
         user.id,

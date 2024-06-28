@@ -1,0 +1,41 @@
+import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { InjectRepository } from '@nestjs/typeorm';
+import { User } from 'src/users/entities/user.entity';
+import { Repository } from 'typeorm';
+import { authenticator } from 'otplib';
+
+@Injectable()
+export class OtpAuthenticationService {
+  constructor(
+    private readonly configService: ConfigService,
+    @InjectRepository(User) private readonly userRepository: Repository<User>,
+  ) {}
+
+  async generateSecret(email: string) {
+    const secret = authenticator.generateSecret();
+    const appName = this.configService.get('APP_NAME');
+    const uri = authenticator.keyuri(email, appName, secret);
+    return { secret, uri };
+  }
+
+  verifyCode(code: string, secret: string) {
+    return authenticator.verify({ token: code, secret });
+  }
+
+  async enableTfaForUser(email: string, secret: string) {
+    const { id } = await this.userRepository.findOneOrFail({
+      where: { email },
+      select: { id: true },
+    });
+
+    await this.userRepository.update(
+      { id },
+
+      /**
+       * @description: Ideally, this secret should be encrypt instead of storing it as plaintext. Note - Hashing is not convenient due to secret being originally hashed as required to verify the user's provided code.
+       */
+      { tfaSecret: secret, isTfaEnabled: true },
+    );
+  }
+}

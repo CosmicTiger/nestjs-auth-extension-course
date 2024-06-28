@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { HashingService } from './hashing/hashing.service';
 import { BcryptService } from './hashing/bcrypt.service';
@@ -12,8 +12,8 @@ import { APP_GUARD } from '@nestjs/core';
 import { AccessTokenGuard } from './authentication/guards/access-token/access-token.guard';
 import { AuthenticationGuard } from './authentication/guards/authentication/authentication.guard';
 import { RefreshTokenIdsStorage } from './authentication/refresh-token-ids.storage';
-import { RolesGuard } from './authorization/guards/roles/roles.guard';
-import { PermissionsGuard } from './authorization/guards/permissions/permissions.guard';
+// import { RolesGuard } from './authorization/guards/roles/roles.guard';
+// import { PermissionsGuard } from './authorization/guards/permissions/permissions.guard';
 import { PolicyHandlerStorage } from './authorization/policies/policy-handlers.storage';
 import { FrameworkContributorPolicyHandler } from './authorization/policies/framework-contributor.policy';
 import { PoliciesGuard } from './authorization/guards/policies/policies.guard';
@@ -23,6 +23,13 @@ import { ApiKeyGuard } from './authentication/guards/api-key/api-key.guard';
 import { GoogleAuthenticationService } from './authentication/social/google-authentication.service';
 import { GoogleAuthenticationController } from './authentication/social/google-authentication.controller';
 import { OtpAuthenticationService } from './authentication/otp-authentication.service';
+import { SessionAuthenticationService } from './authentication/session-authentication.service';
+import { SessionAuthenticationController } from './authentication/session-authentication.controller';
+import * as session from 'express-session';
+import * as passport from 'passport';
+import { UserSerializer } from './authentication/serializers/user-serializer/user-serializer';
+import RedisStore from 'connect-redis';
+import { Redis } from 'ioredis';
 
 @Module({
   imports: [
@@ -60,7 +67,35 @@ import { OtpAuthenticationService } from './authentication/otp-authentication.se
     ApiKeysService,
     GoogleAuthenticationService,
     OtpAuthenticationService,
+    SessionAuthenticationService,
+    UserSerializer,
   ],
-  controllers: [AuthenticationController, GoogleAuthenticationController],
+  controllers: [
+    AuthenticationController,
+    GoogleAuthenticationController,
+    SessionAuthenticationController,
+  ],
 })
-export class IamModule {}
+export class IamModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    const RedisConnection = new Redis(
+      +process.env.REDIS_PORT,
+      process.env.REDIS_HOST,
+    );
+    const redisStore = new RedisStore({
+      client: RedisConnection,
+    });
+    consumer
+      .apply(
+        session({
+          store: redisStore,
+          secret: process.env.SESSION_SECRET,
+          resave: false,
+          saveUninitialized: false,
+        }),
+        passport.initialize(),
+        passport.session(),
+      )
+      .forRoutes('*');
+  }
+}
